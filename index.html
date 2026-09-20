@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BrandUp Digital - AI Content & Analytics Hub</title>
+    <title>BrandUp Digital - AI Content & SEO Intelligence Hub</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -11,22 +11,24 @@
 </head>
 <body class="bg-gray-50 font-sans text-gray-900">
 
-    <!-- App Container -->
+    <!-- App Root Container -->
     <div id="app"></div>
 
     <script>
-        // --- Application State & LocalStorage Management ---
+        // ==========================================
+        // SECTION 0: DATABASE & STATE MANAGEMENT
+        // ==========================================
         const DB = {
-            getUsers: () => JSON.parse(localStorage.getItem('bu_users')) || [],
-            saveUsers: (users) => localStorage.setItem('bu_users', JSON.stringify(users)),
-            getCurrentUser: () => JSON.parse(localStorage.getItem('bu_current_user')),
-            setCurrentUser: (user) => localStorage.setItem('bu_current_user', JSON.stringify(user)),
-            getWallet: () => JSON.parse(localStorage.getItem('bu_wallet')) || { balance: 0, transactions: [] },
-            saveWallet: (wallet) => localStorage.setItem('bu_wallet', JSON.stringify(wallet)),
+            getUsers: () => JSON.parse(localStorage.getItem('bud_users')) || [],
+            saveUsers: (users) => localStorage.setItem('bud_users', JSON.stringify(users)),
+            getCurrentUser: () => JSON.parse(localStorage.getItem('bud_current_user')),
+            setCurrentUser: (user) => localStorage.setItem('bud_current_user', JSON.stringify(user)),
+            getWallet: () => JSON.parse(localStorage.getItem('bud_wallet')) || { balance: 0, transactions: [] },
+            saveWallet: (wallet) => localStorage.setItem('bud_wallet', JSON.stringify(wallet)),
         };
 
-        // Initialize Default Admin if not exists
-        function initDB() {
+        // Initialize Default Admin Account
+        function initSystem() {
             let users = DB.getUsers();
             if (!users.some(u => u.email === 'admin@brandup.com')) {
                 users.push({
@@ -40,66 +42,60 @@
                 DB.saveUsers(users);
             }
         }
-        initDB();
+        initSystem();
 
-        // --- Main Router ---
+        // Main App Router
         function renderApp() {
-            const currentUser = DB.getCurrentUser();
-            const appDiv = document.getElementById('app');
-
-            if (!currentUser) {
-                renderAuthPage();
+            const user = DB.getCurrentUser();
+            if (!user) {
+                renderAuthSection();
                 return;
             }
-
-            // Check if user is Admin
-            if (currentUser.role === 'admin') {
+            if (user.role === 'admin') {
                 renderAdminDashboard();
                 return;
             }
-
-            // Check if user package is pending approval
-            if (currentUser.status === 'pending') {
-                renderPendingApprovalPage();
+            if (user.status === 'pending_payment') {
+                renderBankPaymentSection();
                 return;
             }
-
-            // Check if user needs to select a package
-            if (currentUser.status === 'select_package' || !currentUser.packageStatus || currentUser.packageStatus === 'pending') {
-                if (currentUser.packageStatus === 'pending') {
-                    renderPendingApprovalPage();
-                } else {
-                    renderPackageSelectionPage();
-                }
+            if (user.status === 'pending_approval') {
+                renderPendingApprovalSection();
                 return;
             }
-
-            // Main Dashboard
+            if (user.status === 'select_package') {
+                renderPackagesSection();
+                return;
+            }
+            // If fully approved, render Main Jasper-like Dashboard
             renderMainDashboard();
         }
 
-        // --- 1. Authentication Pages (Sign Up & Sign In) ---
-        let isSignUpMode = true;
+        // ==========================================
+        // SECTION 1 & 2: SIGN UP & SIGN IN FORMS
+        // ==========================================
+        let isSignUpActive = true;
 
-        function renderAuthPage() {
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
+        function renderAuthSection() {
+            const app = document.getElementById('app');
+            app.innerHTML = `
                 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
                     <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 space-y-6">
                         <div class="text-center">
                             <h2 class="text-3xl font-extrabold text-indigo-600">BrandUp Digital</h2>
-                            <p class="mt-2 text-sm text-gray-600">${isSignUpMode ? 'Create your professional account' : 'Sign in to access your dashboard'}</p>
+                            <p class="mt-2 text-sm text-gray-600">${isSignUpActive ? 'Create your professional account' : 'Sign in to access your intelligence dashboard'}</p>
                         </div>
 
+                        <!-- Toggle Tabs -->
                         <div class="flex rounded-lg bg-gray-100 p-1">
-                            <button onclick="switchAuthMode(true)" class="flex-1 py-2 text-sm font-medium rounded-md transition ${isSignUpMode ? 'bg-white text-indigo-600 shadow' : 'text-gray-500'}">Sign Up</button>
-                            <button onclick="switchAuthMode(false)" class="flex-1 py-2 text-sm font-medium rounded-md transition ${!isSignUpMode ? 'bg-white text-indigo-600 shadow' : 'text-gray-500'}">Sign In</button>
+                            <button onclick="switchAuthTab(true)" class="flex-1 py-2 text-sm font-medium rounded-md transition ${isSignUpActive ? 'bg-white text-indigo-600 shadow' : 'text-gray-500'}">Sign Up</button>
+                            <button onclick="switchAuthTab(false)" class="flex-1 py-2 text-sm font-medium rounded-md transition ${!isSignUpActive ? 'bg-white text-indigo-600 shadow' : 'text-gray-500'}">Sign In</button>
                         </div>
 
                         <form class="space-y-4" onsubmit="handleAuthSubmit(event)">
-                            ${isSignUpMode ? `
+                            ${isSignUpActive ? `
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700">Full Name</label>
+                                    <label class="block text-sm font-medium text-gray-700">User Name</label>
                                     <input type="text" id="authName" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                                 </div>
                             ` : ''}
@@ -111,25 +107,25 @@
                                 <label class="block text-sm font-medium text-gray-700">Password</label>
                                 <div class="relative mt-1">
                                     <input type="password" id="authPass" required class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 pr-10">
-                                    <span onclick="togglePassword('authPass', 'eyePass')" class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-indigo-600">
-                                        <i id="eyePass" class="fa-solid fa-eye"></i>
+                                    <span onclick="togglePasswordVisibility('authPass', 'eyePass1')" class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-indigo-600">
+                                        <i id="eyePass1" class="fa-solid fa-eye"></i>
                                     </span>
                                 </div>
                             </div>
-                            ${isSignUpMode ? `
+                            ${isSignUpActive ? `
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
                                     <div class="relative mt-1">
                                         <input type="password" id="authConfirmPass" required class="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 pr-10">
-                                        <span onclick="togglePassword('authConfirmPass', 'eyeConfirmPass')" class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-indigo-600">
-                                            <i id="eyeConfirmPass" class="fa-solid fa-eye"></i>
+                                        <span onclick="togglePasswordVisibility('authConfirmPass', 'eyePass2')" class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-indigo-600">
+                                            <i id="eyePass2" class="fa-solid fa-eye"></i>
                                         </span>
                                     </div>
                                 </div>
                             ` : ''}
-                            <div id="authError" class="text-red-500 text-sm hidden"></div>
+                            <div id="authErrorMsg" class="text-red-500 text-sm hidden"></div>
                             <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 font-medium transition">
-                                ${isSignUpMode ? 'Sign Up & Continue' : 'Sign In'}
+                                ${isSignUpActive ? 'Sign Up & Continue' : 'Sign In'}
                             </button>
                         </form>
                     </div>
@@ -137,12 +133,12 @@
             `;
         }
 
-        function switchAuthMode(signup) {
-            isSignUpMode = signup;
-            renderAuthPage();
+        function switchAuthTab(signUpMode) {
+            isSignUpActive = signUpMode;
+            renderAuthSection();
         }
 
-        function togglePassword(fieldId, iconId) {
+        function togglePasswordVisibility(fieldId, iconId) {
             const field = document.getElementById(fieldId);
             const icon = document.getElementById(iconId);
             if (field.type === 'password') {
@@ -158,20 +154,20 @@
             e.preventDefault();
             const email = document.getElementById('authEmail').value.trim();
             const pass = document.getElementById('authPass').value;
-            const errDiv = document.getElementById('authError');
+            const errDiv = document.getElementById('authErrorMsg');
             let users = DB.getUsers();
 
-            if (isSignUpMode) {
+            if (isSignUpActive) {
                 const name = document.getElementById('authName').value.trim();
                 const confirmPass = document.getElementById('authConfirmPass').value;
 
                 if (pass !== confirmPass) {
-                    errDiv.innerText = "Passwords do not match!";
+                    errDiv.innerText = "Error: Both passwords do not match!";
                     errDiv.classList.remove('hidden');
                     return;
                 }
                 if (users.some(u => u.email === email)) {
-                    errDiv.innerText = "Email already registered. Please sign in.";
+                    errDiv.innerText = "Error: Email already registered. Please sign in.";
                     errDiv.classList.remove('hidden');
                     return;
                 }
@@ -183,7 +179,7 @@
                     role: 'user',
                     status: 'select_package',
                     package: null,
-                    packageStatus: 'none'
+                    amount: 0
                 };
                 users.push(newUser);
                 DB.saveUsers(users);
@@ -192,7 +188,7 @@
             } else {
                 const user = users.find(u => u.email === email && u.password === pass);
                 if (!user) {
-                    errDiv.innerText = "Invalid email or password, or account does not exist.";
+                    errDiv.innerText = "Error: Invalid email or password, or account does not exist.";
                     errDiv.classList.remove('hidden');
                     return;
                 }
@@ -201,16 +197,18 @@
             }
         }
 
-        // --- 2. Package Plans Page ---
-        function renderPackageSelectionPage() {
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
+        // ==========================================
+        // SECTION 3: PACKAGE PLANS SECTION
+        // ==========================================
+        function renderPackagesSection() {
+            const app = document.getElementById('app');
+            app.innerHTML = `
                 <div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-                    <div class="max-w-4xl mx-auto text-center">
+                    <div class="max-w-4xl mx-auto text-center space-y-4">
                         <h2 class="text-3xl font-extrabold text-indigo-600">Select Your Package Plan</h2>
-                        <p class="mt-2 text-gray-600">Choose a plan to unlock the BrandUp Digital AI Search Dashboard</p>
+                        <p class="text-gray-600">Choose a plan to unlock the advanced SEO query intelligence hub</p>
                         
-                        <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
                             <!-- Monthly Plan -->
                             <div class="bg-white rounded-2xl shadow-xl p-8 border-2 border-indigo-100 flex flex-col justify-between">
                                 <div>
@@ -218,7 +216,7 @@
                                     <p class="mt-4 text-gray-500">Full access billed monthly</p>
                                     <div class="mt-6 text-4xl font-extrabold text-indigo-600">$200<span class="text-base font-medium text-gray-500">/month</span></div>
                                 </div>
-                                <button onclick="selectPackage('Monthly', 200)" class="mt-8 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition">Choose Monthly</button>
+                                <button onclick="choosePackage('Monthly', 200)" class="mt-8 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition">Choose Monthly ($200)</button>
                             </div>
 
                             <!-- Annual Plan -->
@@ -226,13 +224,13 @@
                                 <span class="absolute top-0 right-8 transform -translate-y-1/2 bg-indigo-600 text-white text-xs font-bold uppercase py-1 px-3 rounded-full">Best Value</span>
                                 <div>
                                     <h3 class="text-2xl font-bold text-gray-900">Annual Plan</h3>
-                                    <p class="mt-4 text-gray-500">Full access billed annually (Save $200)</p>
+                                    <p class="mt-4 text-gray-500">Full access billed annually</p>
                                     <div class="mt-6 text-4xl font-extrabold text-indigo-600">$2200<span class="text-base font-medium text-gray-500">/year</span></div>
                                 </div>
-                                <button onclick="selectPackage('Annual', 2200)" class="mt-8 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition">Choose Annual</button>
+                                <button onclick="choosePackage('Annual', 2200)" class="mt-8 w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition">Choose Annual ($2200)</button>
                             </div>
                         </div>
-                        <div class="mt-8">
+                        <div class="mt-6">
                             <button onclick="logout()" class="text-sm text-red-600 hover:underline">Sign Out</button>
                         </div>
                     </div>
@@ -240,60 +238,146 @@
             `;
         }
 
-        function selectPackage(packageName, amount) {
+        function choosePackage(packageName, amount) {
             let user = DB.getCurrentUser();
             user.package = packageName;
-            user.packageStatus = 'pending';
+            user.amount = amount;
+            user.status = 'pending_payment';
             DB.setCurrentUser(user);
-
-            // Update users list
-            let users = DB.getUsers();
-            users = users.map(u => u.email === user.email ? user : u);
-            DB.saveUsers(users);
-
-            // Add to Company Wallet (held securely)
-            let wallet = DB.getWallet();
-            wallet.transactions.push({
-                user: user.email,
-                package: packageName,
-                amount: amount,
-                date: new Date().toISOString(),
-                status: 'Held in Wallet (Pending Admin Approval)'
-            });
-            DB.saveWallet(wallet);
-
             renderApp();
         }
 
-        // --- 3. Pending Approval Page ---
-        function renderPendingApprovalPage() {
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
-                <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-                    <div class="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center space-y-4">
-                        <div class="text-yellow-500 text-5xl"><i class="fa-solid fa-hourglass-half animate-spin"></i></div>
-                        <h2 class="text-2xl font-bold text-gray-900">Waiting for Admin Approval</h2>
-                        <p class="text-gray-600">You have selected your package plan. Payment is securely held in the system wallet. Once the administrator approves your transaction, your main dashboard will unlock automatically.</p>
-                        <button onclick="logout()" class="mt-4 w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition">Sign Out</button>
+        // ==========================================
+        // SECTION 4: BANK & CARD PAYMENT SECTION
+        // ==========================================
+        function renderBankPaymentSection() {
+            const user = DB.getCurrentUser();
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+                    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 space-y-6">
+                        <div class="text-center">
+                            <h2 class="text-2xl font-extrabold text-indigo-600">Secure Card Payment</h2>
+                            <p class="mt-1 text-sm text-gray-600">Selected Package: <b>${user.package}</b> ($${user.amount})</p>
+                        </div>
+
+                        <form class="space-y-4" onsubmit="handlePaymentSubmit(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Cardholder Name</label>
+                                <input type="text" id="cardName" required placeholder="e.g. Adnan Ahmad" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <span id="errName" class="text-xs text-red-500 hidden"></span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">MasterCard / Visa Card Number</label>
+                                <input type="text" id="cardNumber" required placeholder="16-digit card number" maxlength="16" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <span id="errCard" class="text-xs text-red-500 hidden"></span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Expiry (MM/YY)</label>
+                                    <input type="text" id="cardExpiry" required placeholder="MM/YY" maxlength="5" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span id="errExpiry" class="text-xs text-red-500 hidden"></span>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">CVV / CVC</label>
+                                    <input type="password" id="cardCvv" required placeholder="3 digits" maxlength="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                    <span id="errCvv" class="text-xs text-red-500 hidden"></span>
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full py-3 px-4 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition shadow">Pay $${user.amount} Securely</button>
+                        </form>
                     </div>
                 </div>
             `;
         }
 
-        // --- 4. Admin Dashboard ---
+        function handlePaymentSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('cardName').value.trim();
+            const number = document.getElementById('cardNumber').value.trim();
+            const expiry = document.getElementById('cardExpiry').value.trim();
+            const cvv = document.getElementById('cardCvv').value.trim();
+
+            let hasError = false;
+
+            // Reset errors
+            ['errName', 'errCard', 'errExpiry', 'errCvv'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+            if (name.length < 3) {
+                document.getElementById('errName').innerText = "Please enter valid cardholder name.";
+                document.getElementById('errName').classList.remove('hidden');
+                hasError = true;
+            }
+            if (number.length !== 16 || isNaN(number)) {
+                document.getElementById('errCard').innerText = "Card number must be exactly 16 digits.";
+                document.getElementById('errCard').classList.remove('hidden');
+                hasError = true;
+            }
+            if (!expiry.includes('/') || expiry.length !== 5) {
+                document.getElementById('errExpiry').innerText = "Use format MM/YY.";
+                document.getElementById('errExpiry').classList.remove('hidden');
+                hasError = true;
+            }
+            if (cvv.length !== 3 || isNaN(cvv)) {
+                document.getElementById('errCvv').innerText = "CVV must be 3 digits.";
+                document.getElementById('errCvv').classList.remove('hidden');
+                hasError = true;
+            }
+
+            if (hasError) return;
+
+            // Payment successful: deduct/transfer to Admin Wallet automatically
+            let user = DB.getCurrentUser();
+            let wallet = DB.getWallet();
+            wallet.balance += user.amount;
+            wallet.transactions.push({
+                user: user.email,
+                package: user.package,
+                amount: user.amount,
+                date: new Date().toISOString()
+            });
+            DB.saveWallet(wallet);
+
+            // Update user status to pending admin approval
+            user.status = 'pending_approval';
+            DB.setCurrentUser(user);
+
+            let users = DB.getUsers().map(u => u.email === user.email ? user : u);
+            DB.saveUsers(users);
+
+            renderApp();
+        }
+
+        // Pending Approval Waiting Screen
+        function renderPendingApprovalSection() {
+            const app = document.getElementById('app');
+            app.innerHTML = `
+                <div class="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+                    <div class="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center space-y-4">
+                        <div class="text-yellow-500 text-5xl"><i class="fa-solid fa-hourglass-half animate-spin"></i></div>
+                        <h2 class="text-2xl font-bold text-gray-900">Waiting for Admin Approval</h2>
+                        <p class="text-gray-600">Payment successfully processed and deposited into the secure admin wallet. Once the administrator approves your account, your dashboard will unlock.</p>
+                        <button onclick="logout()" class="w-full bg-gray-200 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-300 transition">Sign Out</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // ADMIN CONTROL PANEL
+        // ==========================================
         function renderAdminDashboard() {
             let users = DB.getUsers();
             let wallet = DB.getWallet();
-            let totalWalletBalance = wallet.transactions.reduce((acc, tx) => acc + tx.amount, 0);
 
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
+            const app = document.getElementById('app');
+            app.innerHTML = `
                 <div class="min-h-screen bg-gray-100 p-8">
                     <div class="max-w-6xl mx-auto space-y-8">
                         <div class="flex justify-between items-center bg-white p-6 rounded-xl shadow">
                             <div>
                                 <h1 class="text-2xl font-bold text-indigo-600">Admin Control Panel - BrandUp Digital</h1>
-                                <p class="text-sm text-gray-500">Manage user approvals and platform wallet funds</p>
+                                <p class="text-sm text-gray-500">Manage user approvals & wallet funds</p>
                             </div>
                             <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600">Sign Out</button>
                         </div>
@@ -301,9 +385,9 @@
                         <!-- Wallet Card -->
                         <div class="bg-indigo-900 text-white p-6 rounded-xl shadow flex justify-between items-center">
                             <div>
-                                <p class="text-indigo-200 text-sm">Secure System Wallet Balance</p>
-                                <h3 class="text-3xl font-bold mt-1">$${totalWalletBalance}</h3>
-                                <p class="text-xs text-indigo-300 mt-1">All incoming package payments are safely retained here.</p>
+                                <p class="text-indigo-200 text-sm">System Wallet Balance</p>
+                                <h3 class="text-3xl font-bold mt-1">$${wallet.balance}</h3>
+                                <p class="text-xs text-indigo-300 mt-1">Package revenue safely retained in system wallet.</p>
                             </div>
                             <button onclick="withdrawFunds()" class="bg-white text-indigo-900 px-6 py-3 rounded-lg font-bold hover:bg-indigo-50 transition shadow">Withdraw to Bank Account</button>
                         </div>
@@ -318,7 +402,7 @@
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User Name</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Selected Package</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Package</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                                     </tr>
@@ -328,16 +412,16 @@
                                         <tr>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${u.name}</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${u.email}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${u.package || 'None'}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${u.package \vert{}\vert{} 'None'} ($${u.amount || 0})</td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.packageStatus === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
-                                                    ${u.packageStatus || 'none'}
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                                                    ${u.status}
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                ${u.packageStatus === 'pending' ? `
-                                                    <button onclick="approveUser('${u.email}')" class="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded font-bold">Approve</button>
-                                                ` : '<span class="text-gray-400">Approved</span>'}
+                                                ${u.status === 'pending_approval' ? `
+                                                    <button onclick="approveUser('${u.email}')" class="text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded font-bold">Approve</button>
+                                                ` : '<span class="text-gray-400">-</span>'}
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -353,7 +437,6 @@
             let users = DB.getUsers();
             users = users.map(u => {
                 if (u.email === email) {
-                    u.packageStatus = 'approved';
                     u.status = 'approved';
                 }
                 return u;
@@ -363,34 +446,72 @@
         }
 
         function withdrawFunds() {
-            alert("Funds successfully withdrawn from the system wallet to the administrator's bank account!");
+            let wallet = DB.getWallet();
+            if (wallet.balance <= 0) {
+                alert("No funds available in wallet to withdraw.");
+                return;
+            }
+            alert(`Successfully withdrawn $${wallet.balance} to administrator's bank account!`);
+            wallet.balance = 0;
+            DB.saveWallet(wallet);
+            renderAdminDashboard();
         }
 
-        // --- 5. Main Dashboard (Jasper-like Search & Analytics Tool) ---
-        let currentSearchQueryResults = null;
-        let selectedQueryDetail = null;
+        // ==========================================
+        // SECTION 5: MAIN DASHBOARD & QUERY ANALYTICS
+        // ==========================================
+        let currentSearchData = null;
+
+        const regionCityData = {
+            "Worldwide - Global": ["All Cities"],
+            "Pakistan": ["Lahore", "Karachi", "Islamabad", "Faisalabad"],
+            "United States": ["New York", "Los Angeles", "Chicago", "Houston"],
+            "United Kingdom": ["London", "Manchester", "Birmingham"],
+            "United Arab Emirates": ["Dubai", "Abu Dhabi", "Sharjah"]
+        };
+
+        function updateCityDropdown() {
+            const regionSelect = document.getElementById('filterRegion').value;
+            const citySelect = document.getElementById('filterCity');
+            citySelect.innerHTML = '<option value="">Select City (Optional)...</option>';
+            
+            if (regionCityData[regionSelect]) {
+                regionCityData[regionSelect].forEach(city => {
+                    citySelect.innerHTML += `<option value="${city}">${city}</option>`;
+                });
+            }
+        }
+
+        function toggleCustomNiche(select) {
+            const customInput = document.getElementById('filterNicheCustom');
+            if (select.value === 'Custom') {
+                customInput.classList.remove('hidden');
+                customInput.required = true;
+            } else {
+                customInput.classList.add('hidden');
+                customInput.required = false;
+            }
+        }
 
         function renderMainDashboard() {
-            const currentUser = DB.getCurrentUser();
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = `
+            const user = DB.getCurrentUser();
+            const app = document.getElementById('app');
+            app.innerHTML = `
                 <div class="min-h-screen bg-gray-50 flex flex-col">
                     <!-- Header -->
                     <header class="bg-white shadow-sm sticky top-0 z-50">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
                             <div class="flex items-center space-x-4">
-                                <!-- Sidebar Toggle Button -->
                                 <button onclick="toggleSidebar()" class="text-gray-600 hover:text-indigo-600 focus:outline-none text-xl p-2">
                                     <i class="fa-solid fa-bars"></i>
                                 </button>
-                                <!-- Brand Name -->
                                 <span class="text-2xl font-extrabold text-indigo-600 tracking-tight">BrandUp Digital</span>
                             </div>
                             <div class="flex items-center space-x-3">
-                                <span class="text-sm font-medium text-gray-700">(${currentUser.email})</span>
+                                <span class="text-sm font-medium text-gray-700">(${user.email})</span>
                             </div>
                         </div>
-                        <!-- Sub-header description (H3 strictly 2 lines max) -->
+                        <!-- H3 description exactly 2 lines max -->
                         <div class="bg-indigo-50 border-t border-indigo-100 px-4 py-2 text-center">
                             <h3 class="text-xs sm:text-sm font-semibold text-indigo-900 leading-tight">
                                 Explore global keyword intelligence and deep search query history across regions and niches instantly.<br>
@@ -399,7 +520,7 @@
                         </div>
                     </header>
 
-                    <!-- Sidebar Drawer (Hidden by default, opens only on click) -->
+                    <!-- Sidebar Drawer -->
                     <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="toggleSidebar()"></div>
                     <aside id="sidebarDrawer" class="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col justify-between">
                         <div class="p-6 space-y-6">
@@ -408,10 +529,10 @@
                                 <button onclick="toggleSidebar()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-xl"></i></button>
                             </div>
                             <nav class="space-y-2">
-                                <a href="#" onclick="toggleSidebar(); resetView();" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-house w-5"></i><span>Home</span></a>
-                                <a href="#" onclick="alert('Packages Info: Current active plan is ' + '${currentUser.package}')" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-box w-5"></i><span>Packages</span></a>
-                                <a href="#" onclick="alert('Your current active package plan: ' + '${currentUser.package}')" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-user-check w-5"></i><span>Your Package</span></a>
-                                <a href="#" onclick="alert('For support, contact admin at support@brandup.com')" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-circle-question w-5"></i><span>Help</span></a>
+                                <a href="#" onclick="toggleSidebar(); resetDashboardView();" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-house w-5"></i><span>Home</span></a>
+                                <a href="#" onclick="alert('Available Packages: Monthly ($200) & Annual ($2200)')" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-box w-5"></i><span>Packages</span></a>
+                                <a href="#" onclick="alert('Your active package: ${user.package}')" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-user-check w-5"></i><span>Your Package</span></a>
+                                <a href="#" onclick="alert('Help Support: Contact admin@brandup.com')" class="flex items-center space-x-3 px-4 py-2.5 rounded-lg text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 font-medium"><i class="fa-solid fa-circle-question w-5"></i><span>Help</span></a>
                             </nav>
                         </div>
                         <div class="p-6 border-t border-gray-100">
@@ -419,40 +540,46 @@
                         </div>
                     </aside>
 
-                    <!-- Main Dashboard Content Area -->
+                    <!-- Main Dashboard Content -->
                     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
                         
-                        <!-- Search Filters Section (3 Dropdowns + Go Button) -->
+                        <!-- Search Filters Form -->
                         <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                             <h2 class="text-lg font-bold text-gray-800 mb-4">Query Intelligence Parameters</h2>
-                            <form onsubmit="handleSearchGo(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <form onsubmit="handleGoToQueries(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 
-                                <!-- 1. Select Date -->
+                                <!-- 1. Select Date (Required) -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Date *</label>
                                     <input type="date" id="filterDate" required class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                                 </div>
 
-                                <!-- 2. Select Region (Worldwide cities/regions) -->
+                                <!-- 2. Project Name (Required) -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Region</label>
-                                    <select id="filterRegion" required class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Project Name *</label>
+                                    <input type="text" id="filterProject" required placeholder="e.g. My SEO Campaign" class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+
+                                <!-- 3. Select Region & Country/City (Required + Optional sub-selections) -->
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Region *</label>
+                                    <select id="filterRegion" required onchange="updateCityDropdown()" class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 mb-2">
                                         <option value="">Choose Region...</option>
-                                        <option value="Worldwide - All Regions">Worldwide - All Regions</option>
-                                        <option value="Lahore, Pakistan">Lahore, Pakistan</option>
-                                        <option value="Karachi, Pakistan">Karachi, Pakistan</option>
-                                        <option value="New York, USA">New York, USA</option>
-                                        <option value="London, UK">London, UK</option>
-                                        <option value="Dubai, UAE">Dubai, UAE</option>
-                                        <option value="Toronto, Canada">Toronto, Canada</option>
-                                        <option value="Sydney, Australia">Sydney, Australia</option>
+                                        <option value="Worldwide - Global">Worldwide - Global</option>
+                                        <option value="Pakistan">Pakistan</option>
+                                        <option value="United States">United States</option>
+                                        <option value="United Kingdom">United Kingdom</option>
+                                        <option value="United Arab Emirates">United Arab Emirates</option>
+                                    </select>
+                                    <select id="filterCity" class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                        <option value="">Select City (Optional)...</option>
                                     </select>
                                 </div>
 
-                                <!-- 3. Select Niche (Dropdown + Custom input fallback) -->
+                                <!-- 4. Select Niche (Required + Custom Fallback) -->
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Niche</label>
-                                    <select id="filterNicheSelect" onchange="checkCustomNiche(this)" class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 mb-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Niche *</label>
+                                    <select id="filterNicheSelect" required onchange="toggleCustomNiche(this)" class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 mb-2">
                                         <option value="">Choose Niche...</option>
                                         <option value="AI Content Writing">AI Content Writing</option>
                                         <option value="E-Commerce Apparel">E-Commerce Apparel</option>
@@ -460,23 +587,23 @@
                                         <option value="Crypto & Finance">Crypto & Finance</option>
                                         <option value="Custom">Other (Type Custom Niche)...</option>
                                     </select>
-                                    <input type="text" id="filterNicheCustom" placeholder="Type single custom niche..." class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 hidden">
+                                    <input type="text" id="filterNicheCustom" placeholder="Type single custom niche..." class="w-full px-3 py-2 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500 hidden text-sm">
                                 </div>
 
-                                <!-- Go Button -->
+                                <!-- Go to Queries Button -->
                                 <div>
                                     <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-lg font-bold hover:bg-indigo-700 transition shadow">
-                                        <i class="fa-solid fa-magnifying-glass mr-2"></i> Go
+                                        <i class="fa-solid fa-magnifying-glass mr-2"></i> Go to Queries
                                     </button>
                                 </div>
                             </form>
                         </div>
 
-                        <!-- Dynamic Results Section -->
-                        <div id="resultsContainer">
+                        <!-- Results Container -->
+                        <div id="resultsArea">
                             <div class="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-500">
                                 <i class="fa-solid fa-chart-line text-4xl mb-3 text-indigo-300"></i>
-                                <p class="text-lg">Configure your parameters above and click <strong>Go</strong> to analyze search queries.</p>
+                                <p class="text-lg">Configure your parameters above and click <strong>Go to Queries</strong> to analyze live SEO search data.</p>
                             </div>
                         </div>
 
@@ -485,7 +612,6 @@
             `;
         }
 
-        // Sidebar Toggle Function
         function toggleSidebar() {
             const drawer = document.getElementById('sidebarDrawer');
             const overlay = document.getElementById('sidebarOverlay');
@@ -498,69 +624,56 @@
             }
         }
 
-        function resetView() {
+        function resetDashboardView() {
             renderMainDashboard();
         }
 
-        function checkCustomNiche(select) {
-            const customInput = document.getElementById('filterNicheCustom');
-            if (select.value === 'Custom') {
-                customInput.classList.remove('hidden');
-                customInput.required = true;
-            } else {
-                customInput.classList.add('hidden');
-                customInput.required = false;
-            }
-        }
-
-        // Handle Go button click
-        function handleSearchGo(e) {
+        // Handle Go to Queries
+        function handleGoToQueries(e) {
             e.preventDefault();
             const date = document.getElementById('filterDate').value;
+            const project = document.getElementById('filterProject').value;
             const region = document.getElementById('filterRegion').value;
+            const city = document.getElementById('filterCity').value || 'All Cities';
             const selectNicheVal = document.getElementById('filterNicheSelect').value;
             const customNicheVal = document.getElementById('filterNicheCustom').value.trim();
 
             let niche = selectNicheVal === 'Custom' ? customNicheVal : selectNicheVal;
 
-            if (!niche) {
-                alert("Please select or type a single niche.");
-                return;
-            }
-
-            // Generate mock queries based on niche and region for the selected date
-            currentSearchQueryResults = {
+            currentSearchData = {
                 date,
+                project,
                 region,
+                city,
                 niche,
                 queries: [
-                    { queryText: `${niche.toLowerCase()} automation tools for scaling business`, count: 1420 },
-                    { queryText: `best strategies for ${niche.toLowerCase()} in ${region}`, count: 980 },
-                    { queryText: `affordable ${niche.toLowerCase()} setup guide`, count: 654 },
-                    { queryText: `advanced ${niche.toLowerCase()} optimization tricks`, count: 412 }
+                    { queryText: `best ${niche.toLowerCase()} automation tools for scaling`, frequency: 1540 },
+                    { queryText: `affordable ${niche.toLowerCase()} setup guide 2026`, frequency: 920 },
+                    { queryText: `how to optimize ${niche.toLowerCase()} in ${city}`, frequency: 645 },
+                    { queryText: `advanced strategies for ${niche.toLowerCase()}`, frequency: 410 }
                 ]
             };
 
-            renderSearchResultsList();
+            renderQueriesList();
         }
 
-        // Render search queries list for selected date, region, and niche
-        function renderSearchResultsList() {
-            const container = document.getElementById('resultsContainer');
-            const data = currentSearchQueryResults;
+        // Render Queries List
+        function renderQueriesList() {
+            const container = document.getElementById('resultsArea');
+            const data = currentSearchData;
 
             container.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-lg p-6 space-y-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-4 gap-2">
                         <div>
-                            <h2 class="text-xl font-bold text-gray-800">Search Query Analysis Results</h2>
+                            <h2 class="text-xl font-bold text-gray-800">Search Queries List - Project: <span class="text-indigo-600">${data.project}</span></h2>
                             <p class="text-sm text-gray-500 mt-1">
                                 Date: <span class="font-semibold text-indigo-600">${data.date}</span> | 
-                                Region: <span class="font-semibold text-indigo-600">${data.region}</span> | 
+                                Region: <span class="font-semibold text-indigo-600">${data.region} (${data.city})</span> | 
                                 Niche: <span class="font-semibold text-indigo-600">${data.niche}</span>
                             </p>
                         </div>
-                        <button onclick="resetView()" class="text-sm text-indigo-600 hover:underline font-medium"><i class="fa-solid fa-arrow-left mr-1"></i> New Search</button>
+                        <button onclick="resetDashboardView()" class="text-sm text-indigo-600 hover:underline font-medium"><i class="fa-solid fa-arrow-left mr-1"></i> New Search</button>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -568,17 +681,17 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Search Query</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Search Count (Selected Date)</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Search Frequency</th>
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 ${data.queries.map((q, idx) => `
-                                    <tr class="hover:bg-indigo-50/50 cursor-pointer transition" onclick="viewQueryHistory('${idx}')">
+                                    <tr class="hover:bg-indigo-50/50 cursor-pointer transition" onclick="renderIndividualQueryHistory('${idx}')">
                                         <td class="px-6 py-4 text-sm font-medium text-indigo-600 hover:underline">${q.queryText}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-700 font-semibold">${q.count} searches</td>
+                                        <td class="px-6 py-4 text-sm text-gray-700 font-semibold">${q.frequency} searches</td>
                                         <td class="px-6 py-4 text-right text-sm">
-                                            <span class="text-indigo-600 font-medium">View History <i class="fa-solid fa-chevron-right ml-1 text-xs"></i></span>
+                                            <span class="text-indigo-600 font-medium">View Individual History <i class="fa-solid fa-chevron-right ml-1 text-xs"></i></span>
                                         </td>
                                     </tr>
                                 `).join('')}
@@ -589,61 +702,93 @@
             `;
         }
 
-        // Render individual query history drill-down
-        function viewQueryHistory(index) {
-            const data = currentSearchQueryResults;
+        // Render Individual Query History (Drill down 1)
+        function renderIndividualQueryHistory(index) {
+            const data = currentSearchData;
             const queryItem = data.queries[index];
-            const currentUser = DB.getCurrentUser();
-            const container = document.getElementById('resultsContainer');
+            const container = document.getElementById('resultsArea');
 
             container.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-lg p-6 space-y-6">
                     <div class="flex justify-between items-center border-b pb-4">
                         <div>
-                            <button onclick="renderSearchResultsList()" class="text-sm text-indigo-600 hover:underline font-medium mb-2 inline-block"><i class="fa-solid fa-arrow-left mr-1"></i> Back to Query List</button>
-                            <h2 class="text-xl font-bold text-gray-800">Detailed Query History</h2>
+                            <button onclick="renderQueriesList()" class="text-sm text-indigo-600 hover:underline font-medium mb-2 inline-block"><i class="fa-solid fa-arrow-left mr-1"></i> Back to Query List</button>
+                            <h2 class="text-xl font-bold text-gray-800">Individual Search History List</h2>
                             <p class="text-sm text-gray-500 mt-1">Query: <span class="font-semibold text-indigo-600">"${queryItem.queryText}"</span></p>
-                        </div>
-                        <div class="text-right text-xs text-gray-500">
-                            <p>User: <span class="font-semibold">${currentUser.email}</span></p>
-                            <p>Region: ${data.region} | Niche: ${data.niche}</p>
                         </div>
                     </div>
 
-                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 space-y-2">
-                        <h4 class="font-bold text-indigo-900 text-sm">User Search Journey & Context (Filtered by Date: ${data.date})</h4>
-                        <p class="text-sm text-indigo-700">Below is the isolated search history showing precisely how this query was generated by this user under the selected niche and region parameters.</p>
+                    <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                        <p class="text-sm text-indigo-900 font-medium">Showing individual user search records for this query matching Date (${data.date}) and Region (${data.region}).</p>
                     </div>
 
                     <div class="space-y-3">
-                        <div class="p-4 border rounded-xl bg-white shadow-sm flex justify-between items-center">
+                        <div class="p-4 border rounded-xl bg-white shadow-sm flex justify-between items-center cursor-pointer hover:bg-gray-50 transition" onclick="renderPerUserAllQueries('${index}')">
                             <div>
-                                <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded">Timestamp: 09:15 AM</span>
-                                <p class="text-sm font-medium text-gray-800 mt-2">Initial prompt refinement for ${data.niche}</p>
-                                <p class="text-xs text-gray-500 mt-1">Used search string: <code>${queryItem.queryText}</code></p>
+                                <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded">User ID: USR-8921</span>
+                                <p class="text-sm font-medium text-gray-800 mt-2">Executed query: <code>${queryItem.queryText}</code></p>
+                                <p class="text-xs text-gray-500 mt-1">Timestamp: 10:24 AM | Region: ${data.region} (${data.city})</p>
                             </div>
-                            <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">Successful Match</span>
+                            <span class="text-indigo-600 text-sm font-bold">View User's All Niche Queries <i class="fa-solid fa-arrow-right ml-1"></i></span>
                         </div>
-                        <div class="p-4 border rounded-xl bg-white shadow-sm flex justify-between items-center">
+                        <div class="p-4 border rounded-xl bg-white shadow-sm flex justify-between items-center cursor-pointer hover:bg-gray-50 transition" onclick="renderPerUserAllQueries('${index}')">
                             <div>
-                                <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded">Timestamp: 11:30 AM</span>
-                                <p class="text-sm font-medium text-gray-800 mt-2">Follow-up query variant in region ${data.region}</p>
-                                <p class="text-xs text-gray-500 mt-1">Used search string: <code>best practices for ${queryItem.queryText}</code></p>
+                                <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded">User ID: USR-4412</span>
+                                <p class="text-sm font-medium text-gray-800 mt-2">Executed query: <code>best practices for ${queryItem.queryText}</code></p>
+                                <p class="text-xs text-gray-500 mt-1">Timestamp: 02:15 PM | Region: ${data.region} (${data.city})</p>
                             </div>
-                            <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">Successful Match</span>
+                            <span class="text-indigo-600 text-sm font-bold">View User's All Niche Queries <i class="fa-solid fa-arrow-right ml-1"></i></span>
                         </div>
                     </div>
                 </div>
             `;
         }
 
-        // Logout function
+        // Render Specific User's Full Search History in the Niche (Drill down 2 for SEO Experts)
+        function renderPerUserAllQueries(index) {
+            const data = currentSearchData;
+            const container = document.getElementById('resultsArea');
+
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-lg p-6 space-y-6">
+                    <div class="flex justify-between items-center border-b pb-4">
+                        <div>
+                            <button onclick="renderIndividualQueryHistory('${index}')" class="text-sm text-indigo-600 hover:underline font-medium mb-2 inline-block"><i class="fa-solid fa-arrow-left mr-1"></i> Back to Individual History</button>
+                            <h2 class="text-xl font-bold text-gray-800">Complete User Search Journey (SEO Expert View)</h2>
+                            <p class="text-sm text-gray-500 mt-1">Showing all queries searched by this individual user under Niche: <span class="font-semibold text-indigo-600">${data.niche}</span> on Date: <span class="font-semibold text-indigo-600">${data.date}</span></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                        <p class="text-xs text-green-800 font-bold uppercase tracking-wider">SEO Expert Intelligence Insight</p>
+                        <p class="text-sm text-green-900 mt-1">This detailed breakdown reveals the exact sequence of keywords and related terms used by the individual user during their session within this specific niche and region.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="p-3 border rounded-lg bg-gray-50 flex justify-between items-center">
+                            <span class="text-sm font-mono text-gray-800">1. introductory search: "what is ${data.niche.toLowerCase()}?"</span>
+                            <span class="text-xs text-gray-500">09:10 AM</span>
+                        </div>
+                        <div class="p-3 border rounded-lg bg-gray-50 flex justify-between items-center">
+                            <span class="text-sm font-mono text-gray-800">2. refined query: "top rated ${data.niche.toLowerCase()} platforms"</span>
+                            <span class="text-xs text-gray-500">09:14 AM</span>
+                        </div>
+                        <div class="p-3 border rounded-lg bg-indigo-50 border-indigo-200 flex justify-between items-center">
+                            <span class="text-sm font-mono font-bold text-indigo-900">3. target query: "affordable ${data.niche.toLowerCase()} setup guide 2026"</span>
+                            <span class="text-xs text-indigo-600 font-bold">09:20 AM</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Global Logout
         function logout() {
-            localStorage.removeItem('bu_current_user');
+            localStorage.removeItem('bud_current_user');
             renderApp();
         }
 
-        // Initial app load call
+        // Initial Load
         renderApp();
     </script>
 </body>
